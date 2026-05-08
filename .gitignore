@@ -1,0 +1,32 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+audit.log
+server.log
+sync.log
+*.lock
+*.csv.bak.*
+backups/
+/tmp/akuvox-web.log
+# VS Code
+.vscode/
+
+# Local Deployment & Private Keys
+/local_server/
+*.sh
+local_admin@*
+*.pub
+
+
+# Data Files
+warehouse-keyfobs.csv
+managers.json
+cli-help.md
+
+# Python Virtual Environment
+.venv/
+venv/
+ENV/
+

@@ -1,0 +1,265 @@
+:root {
+  --bg0: #f9f8f3;
+  --bg1: #ece7db;
+  --ink: #1e2225;
+  --ink-soft: #55616d;
+  --accent: #106862;
+  --accent-2: #c94f31;
+  --card: rgba(255, 255, 255, 0.78);
+  --line: #d3d6d8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 15%, #fff9df 0%, var(--bg0) 35%, var(--bg1) 100%);
+  min-height: 100vh;
+}
+
+.bg-shape {
+  position: fixed;
+  border-radius: 999px;
+  filter: blur(24px);
+  z-index: -1;
+  opacity: 0.55;
+}
+
+.bg-1 {
+  width: 280px;
+  height: 280px;
+  background: #ffbc99;
+  top: -60px;
+  right: -40px;
+}
+
+.bg-2 {
+  width: 260px;
+  height: 260px;
+  background: #8dd8ce;
+  bottom: -70px;
+  left: -50px;
+}
+
+.shell {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+}
+
+.meta {
+  color: var(--ink-soft);
+}
+
+.card {
+  background: var(--card);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+  animation: rise 240ms ease-out;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+input[type="search"], input[data-name-input] {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  min-width: 160px;
+}
+
+.btn, button {
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+button[data-action="toggle-srelay"] {
+  background: #3a5a96;
+}
+
+button[data-action="sync-akuvox"] {
+  background: #7d4e20;
+}
+
+.btn.danger {
+  background: var(--accent-2);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+th, td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+th {
+  color: var(--ink-soft);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.state-pill {
+  display: inline-block;
+  min-width: 52px;
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.state-pill.on {
+  background: #d7fbe8;
+  color: #0f6a3b;
+  border: 1px solid #8bd9ae;
+}
+
+.state-pill.off {
+  background: #ffe3e3;
+  color: #a01616;
+  border: 1px solid #f3aaaa;
+}
+
+.state-pill.unknown {
+  background: #eceff3;
+  color: #4f5c68;
+  border: 1px solid #c9d2db;
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sync-indicator.ok {
+  background: #d7fbe8;
+  color: #0f6a3b;
+  border: 1px solid #8bd9ae;
+}
+
+.sync-indicator.err {
+  background: #ffe3e3;
+  color: #a01616;
+  border: 1px solid #f3aaaa;
+}
+
+.sync-indicator.idle {
+  background: #eceff3;
+  color: #5f6c78;
+  border: 1px solid #c9d2db;
+}
+
+#status {
+  min-height: 1.5em;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+#status.error {
+  color: #b1261d;
+}
+
+#status.ok {
+  color: #14532d;
+}
+
+.login-card {
+  max-width: 420px;
+}
+
+.is-hidden {
+  display: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 740px) {
+  .shell {
+    padding: 12px;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  input[type="search"] {
+    width: 100%;
+  }
+}

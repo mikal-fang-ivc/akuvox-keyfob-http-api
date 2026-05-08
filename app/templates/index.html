@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_title }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-shape bg-1"></div>
+  <div class="bg-shape bg-2"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <h1>{{ app_title }}</h1>
+      <div class="meta">Device {{ akuvox_display_name }}</div>
+    </header>
+
+    {% if not user %}
+      <section class="card login-card">
+        <h2>Sign In Required</h2>
+        <p>Use the configured authentication mode to access keyfob data.</p>
+        <a class="btn" href="/login">Sign In</a>
+      </section>
+    {% else %}
+      <section class="card toolbar">
+        <div>
+          <strong>{{ user.name }}</strong>
+          <span>{{ user.email }}</span>
+        </div>
+        <div class="actions">
+          <input id="search" type="search" placeholder="Search Name / UserId / CardCode">
+          <a id="adminLink" class="btn is-hidden" href="/admin">Admin</a>
+          <button class="btn" id="refreshBtn">Refresh</button>
+          <button class="btn danger" id="logoutBtn">Log out</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div id="status"></div>
+        <div class="table-wrap">
+          <table id="usersTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>UserId</th>
+                <th>Name</th>
+                <th>KeyFob Status</th>
+                <th>CardCode</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card is-hidden" id="managerAdminCard">
+        <h3>Manager Access</h3>
+        <p class="meta">Full access can add/remove full or limited manager accounts.</p>
+        <div class="actions">
+          <input id="managerEmail" type="email" placeholder="manager@impressionsvanity.com">
+          <select id="managerRole" title="Manager role" aria-label="Manager role">
+            <option value="limited">Limited</option>
+            <option value="full">Full</option>
+          </select>
+          <button class="btn" id="saveManagerBtn">Save Manager</button>
+        </div>
+        <div class="table-wrap">
+          <table id="managersTable">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  </main>
+
+  {% if user %}
+  <script>
+    const state = { items: [], syncStateById: {}, me: null, managers: [] };
+    const statusEl = document.getElementById('status');
+    const tableBody = document.querySelector('#usersTable tbody');
+    const managersBody = document.querySelector('#managersTable tbody');
+
+    function hasKeyAccess() {
+      const role = state.me?.role || '';
+      return role === 'limited' || role === 'full';
+    }
+
+    function hasFullAccess() {
+      return (state.me?.role || '') === 'full';
+    }
+
+    function updateAdminLink() {
+      const adminLink = document.getElementById('adminLink');
+      if (!adminLink) return;
+      if (hasFullAccess()) {
+        adminLink.classList.remove('is-hidden');
+      } else {
+        adminLink.classList.add('is-hidden');
+      }
+    }
+
+    function setStatus(message, kind = 'ok') {
+      statusEl.className = kind;
+      statusEl.textContent = message;
+    }
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    function scheduleBadge(rawValue) {
+      const value = String(rawValue || '').trim();
+      if (value.startsWith('1001-')) {
+        return '<span class="state-pill on">ON</span>';
+      }
+      if (value.startsWith('1002-')) {
+        return '<span class="state-pill off">OFF</span>';
+      }
+      return '<span class="state-pill unknown">UNKNOWN</span>';
+    }
+
+    function syncBadge(userId) {
+      const value = state.syncStateById[String(userId)];
+      if (value === true) {
+        return '<span class="sync-indicator ok" title="Last sync succeeded">\u2713</span>';
+      }
+      if (value === false) {
+        return '<span class="sync-indicator err" title="Last sync failed">\u2715</span>';
+      }
+      return '<span class="sync-indicator idle" title="No sync result yet">-</span>';
+    }
+
+    function renderRows() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const list = !q ? state.items : state.items.filter((it) =>
+        String(it.id).includes(q) ||
+        (it.user_id || '').toLowerCase().includes(q) ||
+        (it.name || '').toLowerCase().includes(q) ||
+        (it.card_code || '').toLowerCase().includes(q)
+      );
+
+      tableBody.innerHTML = list.map((it) => `
+        <tr>
+          <td>${esc(it.id)}</td>
+          <td>${esc(it.user_id)}</td>
+          <td><input data-name-input="${esc(it.id)}" value="${esc(it.name)}" /></td>
+          <td>${scheduleBadge(it.schedule_srelay)}</td>
+          <td>${esc(it.card_code || '')}</td>
+          <td class="actions-cell">
+            ${hasKeyAccess() ? `<button data-action="save-name" data-id="${esc(it.id)}">Save Name</button>` : ''}
+            ${hasKeyAccess() ? `<button data-action="toggle-srelay" data-id="${esc(it.id)}">Toggle Key Fob</button>` : ''}
+            ${hasFullAccess() ? `<button data-action="sync-akuvox" data-id="${esc(it.id)}">Sync</button>` : ''}
+            ${hasFullAccess() ? syncBadge(it.id) : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderManagers() {
+      if (!hasFullAccess()) {
+        document.getElementById('managerAdminCard').style.display = 'none';
+        return;
+      }
+      document.getElementById('managerAdminCard').style.display = '';
+      managersBody.innerHTML = (state.managers || []).map((m) => `
+        <tr>
+          <td>${esc(m.email)}</td>
+          <td>${m.role === 'full' ? '<span class="state-pill on">FULL</span>' : '<span class="state-pill unknown">LIMITED</span>'}</td>
+          <td>
+            <button data-action="remove-manager" data-email="${esc(m.email)}">Remove</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadMe() {
+      const res = await fetch('/api/me');
+      if (!res.ok) throw new Error('Failed to load profile');
+      const data = await res.json();
+      state.me = data.user || null;
+      updateAdminLink();
+    }
+
+    async function loadManagers() {
+      if (!hasFullAccess()) return;
+      const res = await fetch('/api/admin/managers');
+      if (!res.ok) throw new Error('Failed to load managers');
+      const data = await res.json();
+      state.managers = data.items || [];
+      renderManagers();
+    }
+
+    async function loadUsers() {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error('Failed to load users');
+      const data = await res.json();
+      state.items = data.items || [];
+      renderRows();
+      setStatus(`Loaded ${state.items.length} users.`);
+    }
+
+    async function post(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const detail = typeof data.detail === 'string' ? data.detail : (data.detail?.message || '');
+        throw new Error(data.message || detail || 'Request failed');
+      }
+      return data;
+    }
+
+    document.getElementById('search').addEventListener('input', renderRows);
+
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      try {
+        await loadUsers();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await post('/logout');
+      location.reload();
+    });
+
+    tableBody.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-action]');
+      if (!btn) return;
+
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+
+      try {
+        btn.disabled = true;
+        if (action === 'save-name') {
+          const input = document.querySelector(`input[data-name-input="${id}"]`);
+          await post(`/api/users/${id}/name`, { new_name: input.value.trim() });
+          setStatus(`Name saved for ID ${id}`);
+        } else if (action === 'toggle-srelay') {
+          await post(`/api/users/${id}/toggle-srelay`);
+          setStatus(`KeyFob status toggled for ID ${id}`);
+        } else if (action === 'sync-akuvox') {
+          await post(`/api/users/${id}/sync-akuvox`);
+          state.syncStateById[String(id)] = true;
+          setStatus(`Sync sent for ID ${id}`);
+        }
+        await loadUsers();
+      } catch (err) {
+        if (action === 'sync-akuvox') {
+          state.syncStateById[String(id)] = false;
+          renderRows();
+        }
+        setStatus(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    managersBody.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action !== 'remove-manager') return;
+      const email = btn.dataset.email;
+      if (!email) return;
+      try {
+        await fetch(`/api/admin/managers/${encodeURIComponent(email)}`, { method: 'DELETE' }).then(async (res) => {
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok || body.ok === false) throw new Error(body.detail || body.message || 'Remove failed');
+          state.managers = body.items || [];
+        });
+        renderManagers();
+        setStatus(`Removed ${email}`);
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    });
+
+    document.getElementById('saveManagerBtn')?.addEventListener('click', async () => {
+      const email = document.getElementById('managerEmail').value.trim();
+      const role = document.getElementById('managerRole').value;
+      try {
+        const data = await post('/api/admin/managers', { email, role });
+        state.managers = data.items || [];
+        renderManagers();
+        setStatus(`Manager saved: ${email} (${role})`);
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    });
+
+    (async () => {
+      try {
+        await loadMe();
+        if (!hasKeyAccess()) {
+          throw new Error('No access. Ask a full-access manager to add your email to managers.json.');
+        }
+        await loadUsers();
+        await loadManagers();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    })();
+  </script>
+  {% endif %}
+</body>
+</html>

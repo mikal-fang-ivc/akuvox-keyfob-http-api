@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_title }} Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-shape bg-1"></div>
+  <div class="bg-shape bg-2"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <h1>{{ app_title }} Admin</h1>
+      <div class="meta">Device {{ akuvox_display_name }}</div>
+    </header>
+
+    <section class="card toolbar">
+      <div>
+        <strong>{{ user.name }}</strong>
+        <span>{{ user.email }} ({{ user.role }})</span>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/">Back</a>
+        <button class="btn danger" id="logoutBtn">Log out</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div id="status"></div>
+      <h3>Managers</h3>
+      <p class="meta">Configure full and limited access entries in managers.json.</p>
+
+      <div class="actions">
+        <input id="managerEmail" type="email" placeholder="manager@impressionsvanity.com">
+        <select id="managerRole" title="Manager role" aria-label="Manager role">
+          <option value="limited">Limited</option>
+          <option value="full">Full</option>
+        </select>
+        <button class="btn" id="saveManagerBtn">Save Manager</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="managersTable">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Audit Log</h3>
+      <p class="meta">Recent changes made by all users. Newest first. Showing up to 200 entries.</p>
+      <div class="actions">
+        <button class="btn" id="refreshAuditBtn">Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table id="auditTable">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Action</th>
+              <th>Actor</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const tableBody = document.querySelector('#managersTable tbody');
+
+    function setStatus(message, kind = 'ok') {
+      statusEl.className = kind;
+      statusEl.textContent = message;
+    }
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    function roleBadge(role) {
+      if (role === 'full') return '<span class="state-pill on">FULL</span>';
+      return '<span class="state-pill unknown">LIMITED</span>';
+    }
+
+    async function post(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const detail = typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Request failed');
+        throw new Error(data.message || detail || 'Request failed');
+      }
+      return data;
+    }
+
+    async function loadManagers() {
+      const res = await fetch('/api/admin/managers');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const detail = typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Request failed');
+        throw new Error(data.message || detail || 'Request failed');
+      }
+
+      const items = data.items || [];
+      tableBody.innerHTML = items.map((m) => `
+        <tr>
+          <td>${esc(m.email)}</td>
+          <td>${roleBadge(m.role)}</td>
+          <td><button data-action="remove-manager" data-email="${esc(m.email)}">Remove</button></td>
+        </tr>
+      `).join('');
+      setStatus(`Loaded ${items.length} manager entries.`);
+    }
+
+    document.getElementById('saveManagerBtn').addEventListener('click', async () => {
+      const email = document.getElementById('managerEmail').value.trim();
+      const role = document.getElementById('managerRole').value;
+      try {
+        await post('/api/admin/managers', { email, role });
+        setStatus(`Saved ${email} as ${role}.`);
+        await loadManagers();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    });
+
+    tableBody.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action !== 'remove-manager') return;
+      const email = btn.dataset.email;
+      if (!email) return;
+      try {
+        const res = await fetch(`/api/admin/managers/${encodeURIComponent(email)}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.ok === false) {
+          const detail = typeof data.detail === 'string' ? data.detail : (data.detail?.message || 'Request failed');
+          throw new Error(data.message || detail || 'Request failed');
+        }
+        setStatus(`Removed ${email}.`);
+        await loadManagers();
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await post('/logout');
+      location.href = '/';
+    });
+
+    loadManagers().catch((err) => setStatus(err.message, 'error'));
+
+    const auditBody = document.querySelector('#auditTable tbody');
+
+    async function loadAuditLog() {
+      const res = await fetch('/api/admin/audit-log');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        setStatus('Failed to load audit log', 'error');
+        return;
+      }
+      const items = (data.items || []).slice().reverse();
+      auditBody.innerHTML = items.map((e) => {
+        const detail = typeof e.detail === 'object' ? Object.entries(e.detail).map(([k, v]) => `${esc(k)}: ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}`).join(', ') : esc(String(e.detail));
+        return `<tr>
+          <td style="white-space:nowrap">${esc(e.ts)}</td>
+          <td><strong>${esc(e.action)}</strong></td>
+          <td>${esc(e.actor)}</td>
+          <td style="font-size:0.85em;word-break:break-all">${detail}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    document.getElementById('refreshAuditBtn').addEventListener('click', () => loadAuditLog());
+    loadAuditLog();
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.profiles.windows": {
+			"Ubuntu-24.04": {
+				"path": "C:\\Windows\\System32\\wsl.exe",
+				"args": [
+					"-d",
+					"Ubuntu-24.04"
+				]
+			}
+		},
+		"terminal.integrated.defaultProfile.windows": "Ubuntu-24.04",
+		"terminal.integrated.defaultProfile.linux": "bash"
+	}
+}
