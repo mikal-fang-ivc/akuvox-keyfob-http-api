@@ -60,3 +60,7 @@ This application supports using an external Google OAuth connector for authentic
 - `POST /api/users/{id}/name`
 - `POST /api/users/{id}/toggle-srelay`
 - `POST /api/users/{id}/sync-akuvox`
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
