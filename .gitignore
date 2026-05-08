@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pdf
 audit.log
 server.log
 sync.log
@@ -12,6 +13,7 @@ backups/
 /tmp/akuvox-web.log
 # VS Code
 .vscode/
+*.code-workspace
 
 # Local Deployment & Private Keys
 /local_server/
