@@ -26,10 +26,11 @@ Internal web app for viewing/editing user rows in `keyfobs.csv`(akuvox local use
 
 ## Quick Start
 
-1. Create env file:
+1. Create env file and local config:
 
 ```bash
 cp .env.example .env
+cp app/example.config.py app/config.py
 ```
 
 2. Install deps (inside your venv):
