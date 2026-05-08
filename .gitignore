@@ -24,6 +24,7 @@ local_admin@*
 warehouse-keyfobs.csv
 managers.json
 cli-help.md
+app/config.py
 
 # Python Virtual Environment
 .venv/
